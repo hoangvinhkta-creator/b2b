@@ -1,0 +1,610 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
+    <meta name="theme-color" content="#2563eb">
+    <meta name="description" content="App tra cứu giá hàng điện máy từ Google Sheet">
+    
+    <!-- iOS Web App Meta Tags -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="💰 Tra cứu giá">
+    <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 180 180'><rect fill='%232563eb' width='180' height='180'/><text x='50%' y='50%' font-size='100' fill='white' text-anchor='middle' dy='.35em' font-weight='bold'>💰</text></svg>">
+    
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="manifest.json">
+    
+    <title>Tra cứu giá - Điện Máy Tín Phát</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/papaparse/5.4.1/papaparse.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f3f4f6;
+            color: #1f2937;
+        }
+
+        .container {
+            max-width: 500px;
+            margin: 0 auto;
+            background: white;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+        }
+
+        /* Header */
+        .header {
+            background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+            color: white;
+            padding: 16px;
+            position: sticky;
+            top: 0;
+            z-index: 30;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        .header h1 {
+            font-size: 20px;
+            font-weight: 700;
+            margin-bottom: 4px;
+        }
+
+        .header p {
+            font-size: 12px;
+            opacity: 0.9;
+        }
+
+        .status-badge {
+            display: inline-block;
+            background: rgba(255,255,255,0.2);
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            margin-top: 8px;
+        }
+
+        .status-badge.loading {
+            background: rgba(255,193,7,0.3);
+            color: #fbc02d;
+        }
+
+        .status-badge.synced {
+            background: rgba(76,175,80,0.3);
+            color: #4caf50;
+        }
+
+        /* Content */
+        .content {
+            flex: 1;
+            padding: 16px;
+            padding-bottom: 120px;
+            overflow-y: auto;
+        }
+
+        .content.hidden {
+            display: none;
+        }
+
+        /* Tabs */
+        .tab-nav {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: white;
+            border-top: 1px solid #e5e7eb;
+            box-shadow: 0 -4px 12px rgba(0,0,0,0.1);
+            display: flex;
+            z-index: 20;
+        }
+
+        .tab-nav button {
+            flex: 1;
+            padding: 12px 8px;
+            border: none;
+            background: none;
+            cursor: pointer;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+            font-size: 11px;
+            font-weight: 600;
+            color: #6b7280;
+            transition: all 0.2s;
+        }
+
+        .tab-nav button.active {
+            color: #2563eb;
+            background: #eff6ff;
+            border-top: 3px solid #2563eb;
+        }
+
+        /* Search */
+        .search-box {
+            position: sticky;
+            top: 0;
+            background: white;
+            padding-bottom: 12px;
+            z-index: 10;
+        }
+
+        .search-input {
+            width: 100%;
+            padding: 12px 12px 12px 40px;
+            border: 2px solid #d1d5db;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%239ca3af'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z'%3E%3C/path%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: 10px center;
+            background-size: 20px;
+        }
+
+        .search-input:focus {
+            outline: none;
+            border-color: #2563eb;
+        }
+
+        /* Product Card */
+        .product-card {
+            background: white;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            margin-bottom: 12px;
+            overflow: hidden;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+
+        .product-header {
+            background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+            color: white;
+            padding: 12px 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .product-code {
+            font-family: 'Courier New', monospace;
+            font-weight: 700;
+            font-size: 16px;
+        }
+
+        .favorite-btn {
+            background: none;
+            border: none;
+            cursor: pointer;
+            color: white;
+            font-size: 18px;
+            padding: 4px 8px;
+        }
+
+        .favorite-btn.active {
+            color: #fbbf24;
+        }
+
+        .prices-container {
+            padding: 12px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .price-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px;
+            border-radius: 6px;
+            background: #f9fafb;
+            border: 1px solid #e5e7eb;
+            margin-bottom: 6px;
+        }
+
+        .price-row.min-price {
+            background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+            border: 2px solid #fbbf24;
+        }
+
+        .supplier-name {
+            font-weight: 600;
+            color: #374151;
+            max-width: 120px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .price-value {
+            font-family: 'Courier New', monospace;
+            font-weight: 700;
+            font-size: 16px;
+            color: #1e40af;
+            text-align: right;
+        }
+
+        .price-row.min-price .price-value {
+            color: #92400e;
+        }
+
+        .min-badge {
+            font-size: 10px;
+            color: #b45309;
+            font-weight: 600;
+            margin-left: 4px;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 40px 20px;
+            color: #9ca3af;
+        }
+
+        .loading-spinner {
+            display: inline-block;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        .sync-info {
+            background: #f0fdf4;
+            border: 1px solid #86efac;
+            border-left: 4px solid #22c55e;
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 16px;
+            font-size: 12px;
+            color: #166534;
+        }
+
+        .error-banner {
+            background: #fee2e2;
+            border: 1px solid #fecaca;
+            border-left: 4px solid #ef4444;
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 16px;
+            font-size: 12px;
+            color: #991b1b;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            font-size: 13px;
+        }
+
+        .stat-item {
+            background: #f9fafb;
+            padding: 8px;
+            border-radius: 6px;
+        }
+
+        .stat-label {
+            color: #6b7280;
+            margin-bottom: 4px;
+        }
+
+        .stat-value {
+            font-weight: 700;
+            color: #2563eb;
+            font-size: 18px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <h1>💰 Tra cứu giá</h1>
+            <p>Điện Máy Tín Phát</p>
+            <div class="status-badge synced" id="syncStatus">
+                ✓ Đã cập nhật
+            </div>
+        </div>
+
+        <!-- Search Tab -->
+        <div id="tab-search" class="content">
+            <div class="search-box">
+                <input type="text" id="searchInput" class="search-input" placeholder="Nhập mã sản phẩm...">
+                <div style="font-size: 12px; color: #6b7280; margin-top: 8px;" id="searchCount"></div>
+            </div>
+            <div id="errorBanner"></div>
+            <div id="searchResults"></div>
+        </div>
+
+        <!-- Favorites Tab -->
+        <div id="tab-favorites" class="content hidden">
+            <div id="favoritesContainer"></div>
+        </div>
+
+        <!-- Settings Tab -->
+        <div id="tab-settings" class="content hidden">
+            <div style="background: white; border: 1px solid #e5e7eb; border-radius: 8px; padding: 16px; margin-bottom: 16px;">
+                <h4 style="font-weight: 700; margin-bottom: 12px;">📊 Thông tin</h4>
+                <div class="stats-grid">
+                    <div class="stat-item">
+                        <div class="stat-label">📦 Sản phẩm</div>
+                        <div class="stat-value" id="statProducts">0</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-label">⭐ Yêu thích</div>
+                        <div class="stat-value" id="statFavorites">0</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-label">🕐 Cập nhật</div>
+                        <div class="stat-value" id="statTime" style="font-size: 13px;">-</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-label">🏪 Suppliers</div>
+                        <div class="stat-value" id="statSuppliers">0</div>
+                    </div>
+                </div>
+            </div>
+
+            <div style="background: white; border: 1px solid #e5e7eb; border-radius: 8px; padding: 16px;">
+                <h4 style="font-weight: 700; margin-bottom: 8px;">🔄 Đồng bộ</h4>
+                <p style="font-size: 12px; color: #6b7280; margin-bottom: 12px;">App tự động lấy dữ liệu từ Google Sheet</p>
+                <button onclick="syncData()" style="width: 100%; background: #2563eb; color: white; border: none; padding: 10px; border-radius: 6px; font-weight: 600; cursor: pointer;">
+                    🔄 Cập nhật ngay
+                </button>
+            </div>
+        </div>
+
+        <!-- Tab Navigation -->
+        <div class="tab-nav">
+            <button onclick="switchTab('search')" data-tab="search" class="tab-button active">
+                <span>🔍</span>
+                <span>Tìm kiếm</span>
+            </button>
+            <button onclick="switchTab('favorites')" data-tab="favorites" class="tab-button">
+                <span>⭐</span>
+                <span>Yêu thích</span>
+            </button>
+            <button onclick="switchTab('settings')" data-tab="settings" class="tab-button">
+                <span>⚙️</span>
+                <span>Cài đặt</span>
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // Config
+        const SHEET_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSQFLyassol1bFgbBSxIB_J0RFrLMJ8AGKR7UsUITuoJkDhkPT2UhIZ9VaFujp71dWGkQmqWhvvZfUy/pub?gid=0&single=true&output=csv';
+
+        let priceData = [];
+        let favorites = [];
+        let lastUpdate = null;
+        let suppliers = [];
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            loadFromCache();
+            syncData();
+            updateStats();
+        });
+
+        // Load cached data
+        function loadFromCache() {
+            const cached = localStorage.getItem('priceData');
+            const cachedFav = localStorage.getItem('favorites');
+            const cachedTime = localStorage.getItem('lastUpdate');
+            
+            if (cached) priceData = JSON.parse(cached);
+            if (cachedFav) favorites = JSON.parse(cachedFav);
+            if (cachedTime) lastUpdate = cachedTime;
+        }
+
+        // Save to cache
+        function saveCache() {
+            localStorage.setItem('priceData', JSON.stringify(priceData));
+            localStorage.setItem('favorites', JSON.stringify(favorites));
+            if (lastUpdate) localStorage.setItem('lastUpdate', lastUpdate);
+        }
+
+        // Fetch and parse CSV
+        async function syncData() {
+            const statusEl = document.getElementById('syncStatus');
+            statusEl.textContent = '⏳ Đang cập nhật...';
+            statusEl.className = 'status-badge loading';
+
+            try {
+                const response = await fetch(SHEET_CSV_URL);
+                const csvText = await response.text();
+                
+                // Parse CSV
+                const lines = csvText.split('\n').filter(line => line.trim());
+                if (lines.length < 2) throw new Error('Dữ liệu Sheet trống');
+
+                // Header
+                const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''));
+                suppliers = headers.slice(1); // Bỏ cột đầu (mã sản phẩm)
+
+                // Data
+                priceData = [];
+                for (let i = 1; i < lines.length; i++) {
+                    const cells = lines[i].split(',').map(c => c.trim().replace(/"/g, ''));
+                    const code = cells[0];
+                    
+                    if (!code) continue;
+
+                    const product = { code, prices: {} };
+                    for (let j = 1; j < headers.length; j++) {
+                        const price = parseFloat(cells[j]) || 0;
+                        if (price > 0) {
+                            product.prices[headers[j]] = price;
+                        }
+                    }
+
+                    if (Object.keys(product.prices).length > 0) {
+                        priceData.push(product);
+                    }
+                }
+
+                lastUpdate = new Date().toLocaleString('vi-VN');
+                saveCache();
+
+                statusEl.textContent = '✓ Đã cập nhật';
+                statusEl.className = 'status-badge synced';
+                document.getElementById('errorBanner').innerHTML = '';
+                
+                updateStats();
+                renderSearch();
+            } catch (error) {
+                console.error('Sync error:', error);
+                statusEl.textContent = '⚠️ Lỗi cập nhật';
+                statusEl.className = 'status-badge';
+                
+                const errorHtml = `
+                    <div class="error-banner">
+                        ⚠️ Lỗi: ${error.message}<br>
+                        Sử dụng dữ liệu cache (lần cập nhật cuối: ${lastUpdate || 'chưa có'})
+                    </div>
+                `;
+                document.getElementById('errorBanner').innerHTML = errorHtml;
+            }
+        }
+
+        // Tab switching
+        function switchTab(tabName) {
+            document.querySelectorAll('.content').forEach(el => el.classList.add('hidden'));
+            document.querySelectorAll('.tab-button').forEach(el => el.classList.remove('active'));
+            
+            document.getElementById(`tab-${tabName}`).classList.remove('hidden');
+            document.querySelector(`[data-tab="${tabName}"]`).classList.add('active');
+            
+            if (tabName === 'search') {
+                renderSearch();
+            } else if (tabName === 'favorites') {
+                renderFavorites();
+            }
+        }
+
+        // Search
+        document.getElementById('searchInput').addEventListener('input', (e) => {
+            renderSearch(e.target.value);
+        });
+
+        function renderSearch(query = '') {
+            const results = query 
+                ? priceData.filter(p => p.code.toLowerCase().includes(query.toLowerCase()))
+                : [];
+
+            const container = document.getElementById('searchResults');
+            
+            if (!query) {
+                container.innerHTML = `<div class="empty-state"><p>🔍 Nhập mã sản phẩm</p></div>`;
+                document.getElementById('searchCount').textContent = '';
+                return;
+            }
+
+            if (results.length === 0) {
+                container.innerHTML = `<div class="empty-state"><p>Không tìm thấy "${query}"</p></div>`;
+                document.getElementById('searchCount').textContent = '';
+                return;
+            }
+
+            document.getElementById('searchCount').textContent = `Tìm thấy ${results.length} sản phẩm`;
+
+            const html = results.map(product => {
+                const minPrice = Math.min(...Object.values(product.prices));
+                const maxPrice = Math.max(...Object.values(product.prices));
+                const isFavorite = favorites.includes(product.code);
+
+                return `
+                    <div class="product-card">
+                        <div class="product-header">
+                            <div class="product-code">${product.code}</div>
+                            <button class="favorite-btn ${isFavorite ? 'active' : ''}" onclick="toggleFavorite('${product.code}')">
+                                ${isFavorite ? '★' : '☆'}
+                            </button>
+                        </div>
+                        <div class="prices-container">
+                            ${Object.entries(product.prices).map(([supplier, price]) => {
+                                const isMin = price === minPrice;
+                                return `
+                                    <div class="price-row ${isMin ? 'min-price' : ''}">
+                                        <span class="supplier-name">${supplier}</span>
+                                        <div style="display: flex; align-items: center;">
+                                            <span class="price-value">${price.toLocaleString('vi-VN')}</span>
+                                            ${isMin ? '<span class="min-badge">⭐</span>' : ''}
+                                        </div>
+                                    </div>
+                                `;
+                            }).join('')}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            container.innerHTML = html;
+        }
+
+        // Favorites
+        function toggleFavorite(code) {
+            if (favorites.includes(code)) {
+                favorites = favorites.filter(c => c !== code);
+            } else {
+                favorites.push(code);
+            }
+            saveCache();
+            renderSearch(document.getElementById('searchInput').value);
+            updateStats();
+        }
+
+        function renderFavorites() {
+            const container = document.getElementById('favoritesContainer');
+            
+            if (favorites.length === 0) {
+                container.innerHTML = `<div class="empty-state"><p>⭐ Chưa có sản phẩm yêu thích</p></div>`;
+                return;
+            }
+
+            const items = favorites
+                .map(code => priceData.find(p => p.code === code))
+                .filter(p => p)
+                .map(product => {
+                    const minPrice = Math.min(...Object.values(product.prices));
+                    return `
+                        <div style="background: white; border-left: 4px solid #fbbf24; border-radius: 6px; padding: 16px; margin-bottom: 12px;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                                <div style="font-family: monospace; font-weight: 700; color: #1e40af;">${product.code}</div>
+                                <button class="favorite-btn active" onclick="toggleFavorite('${product.code}')">★</button>
+                            </div>
+                            <div style="font-size: 24px; font-weight: 700; color: #16a34a; margin: 8px 0;">
+                                ${minPrice.toLocaleString('vi-VN')} ₫
+                            </div>
+                            <div style="font-size: 12px; color: #6b7280;">
+                                Giá thấp nhất từ ${Object.keys(product.prices).length} nhà cung cấp
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+
+            container.innerHTML = items;
+        }
+
+        // Stats
+        function updateStats() {
+            document.getElementById('statProducts').textContent = priceData.length;
+            document.getElementById('statFavorites').textContent = favorites.length;
+            document.getElementById('statSuppliers').textContent = suppliers.length;
+            document.getElementById('statTime').textContent = lastUpdate ? lastUpdate.split(' ')[0] : '-';
+        }
+    </script>
+</body>
+</html>
