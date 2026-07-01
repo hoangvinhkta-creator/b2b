@@ -1,0 +1,598 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
+    <meta name="theme-color" content="#2563eb">
+    <title>Tra cứu giá + Tồn kho</title>
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="💰 Tra cứu giá">
+    
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f3f4f6; }
+
+        .login-screen {
+            position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+            background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+            display: flex; align-items: center; justify-content: center;
+            z-index: 1000;
+        }
+        .login-screen.hidden { display: none; }
+        .login-box {
+            background: white; padding: 40px 24px; border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            width: 90%; max-width: 380px;
+        }
+        .login-box h1 { text-align: center; font-size: 28px; margin-bottom: 8px; color: #1f2937; }
+        .login-box p { text-align: center; font-size: 14px; color: #6b7280; margin-bottom: 32px; }
+        .login-input {
+            width: 100%; padding: 12px 16px; border: 2px solid #d1d5db;
+            border-radius: 8px; font-size: 14px; margin-bottom: 12px;
+        }
+        .login-input:focus { outline: none; border-color: #2563eb; }
+        .login-btn {
+            width: 100%; padding: 12px 16px;
+            background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+            color: white; border: none; border-radius: 8px;
+            font-weight: 600; font-size: 16px; cursor: pointer;
+        }
+        .login-error {
+            background: #fee2e2; border: 1px solid #fecaca;
+            color: #991b1b; padding: 12px; border-radius: 6px;
+            font-size: 13px; margin-bottom: 16px; display: none;
+        }
+        .login-error.show { display: block; }
+
+        .container {
+            max-width: 500px; margin: 0 auto; background: white;
+            min-height: 100vh; display: flex; flex-direction: column;
+        }
+        .header {
+            background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+            color: white; padding: 16px; position: sticky;
+            top: 0; z-index: 30; box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        .header h1 { font-size: 20px; font-weight: 700; margin-bottom: 4px; }
+        .header p { font-size: 12px; opacity: 0.9; }
+
+        .content {
+            flex: 1; padding: 16px; padding-bottom: 120px; overflow-y: auto;
+        }
+        .content.hidden { display: none; }
+
+        .search-box {
+            position: sticky; top: 0; background: white;
+            padding-bottom: 12px; z-index: 10;
+        }
+        .search-input {
+            width: 100%; padding: 12px 12px 12px 40px; border: 2px solid #d1d5db;
+            border-radius: 8px; font-size: 14px; font-weight: 600;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%239ca3af'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z'%3E%3C/path%3E%3C/svg%3E");
+            background-repeat: no-repeat; background-position: 10px center; background-size: 20px;
+        }
+        .search-input:focus { outline: none; border-color: #2563eb; }
+
+        .product-card {
+            background: white; border: 1px solid #e5e7eb;
+            border-radius: 8px; margin-bottom: 12px; overflow: hidden;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        .product-header {
+            background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+            color: white; padding: 12px 16px;
+        }
+        .product-code {
+            font-family: 'Courier New', monospace;
+            font-weight: 700; font-size: 14px;
+        }
+
+        .product-info {
+            padding: 12px 16px; background: #f9fafb;
+            display: grid; grid-template-columns: 1fr 1fr; gap: 12px;
+        }
+        .info-item { text-align: center; }
+        .info-label { font-size: 11px; color: #6b7280; font-weight: 600; }
+        .info-value {
+            font-size: 16px; font-weight: 700; color: #1e40af; margin-top: 4px;
+        }
+        .info-value.stock { color: #16a34a; }
+        .info-value.outstock { color: #dc2626; }
+
+        .price-details {
+            padding: 12px 16px; border-top: 1px solid #e5e7eb;
+            font-size: 12px;
+        }
+        .price-row {
+            display: flex; justify-content: space-between;
+            padding: 6px 0; border-bottom: 1px solid #f3f4f6;
+        }
+        .price-row:last-child { border-bottom: none; }
+        .supplier-name { color: #6b7280; }
+        .supplier-price { font-weight: 700; color: #1f2937; }
+
+        .empty-state {
+            text-align: center; padding: 40px 20px; color: #9ca3af;
+        }
+
+        .tab-nav {
+            position: fixed; bottom: 0; left: 0; right: 0;
+            background: white; border-top: 1px solid #e5e7eb;
+            box-shadow: 0 -4px 12px rgba(0,0,0,0.1);
+            display: flex; z-index: 20;
+        }
+        .tab-nav button {
+            flex: 1; padding: 12px 8px; border: none;
+            background: none; cursor: pointer; display: flex;
+            flex-direction: column; align-items: center; gap: 4px;
+            font-size: 11px; font-weight: 600; color: #6b7280;
+        }
+        .tab-nav button.active {
+            color: #2563eb; background: #eff6ff;
+            border-top: 3px solid #2563eb;
+        }
+
+        .sync-btn {
+            width: 100%; background: #2563eb; color: white;
+            border: none; padding: 10px; border-radius: 6px;
+            font-weight: 600; cursor: pointer; margin-bottom: 16px;
+        }
+        .stats-grid {
+            display: grid; grid-template-columns: 1fr 1fr;
+            gap: 8px; font-size: 13px; margin-bottom: 16px;
+        }
+        .stat-item {
+            background: #f9fafb; padding: 8px; border-radius: 6px;
+        }
+        .stat-label { color: #6b7280; margin-bottom: 4px; }
+        .stat-value {
+            font-weight: 700; color: #2563eb; font-size: 18px;
+        }
+    </style>
+</head>
+<body>
+    <div class="login-screen" id="loginScreen">
+        <div class="login-box">
+            <h1>💰 Tra cứu giá</h1>
+            <p>Điện Máy Tín Phát</p>
+            <div class="login-error" id="loginError"></div>
+            <input type="email" id="loginEmail" class="login-input" placeholder="Email" autocomplete="email">
+            <input type="password" id="loginPassword" class="login-input" placeholder="Mật khẩu">
+            <button class="login-btn" onclick="handleLogin()">Đăng nhập</button>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="header">
+            <h1>💰 Tra cứu giá</h1>
+            <p>Điện Máy Tín Phát</p>
+        </div>
+
+        <div id="tab-search" class="content">
+            <div class="search-box">
+                <input type="text" id="searchInput" class="search-input" placeholder="Nhập mã sản phẩm...">
+                <div style="font-size: 12px; color: #6b7280; margin-top: 8px;" id="searchCount"></div>
+            </div>
+            <div id="searchResults"></div>
+        </div>
+
+        <div id="tab-stock" class="content hidden">
+            <div class="search-box">
+                <input type="text" id="stockSearch" class="search-input" placeholder="Tìm sản phẩm...">
+                <div style="font-size: 12px; color: #6b7280; margin-top: 8px;" id="stockCount"></div>
+            </div>
+            <div id="stockResults"></div>
+        </div>
+
+        <div id="tab-settings" class="content hidden">
+            <button class="sync-btn" onclick="syncAllData()">🔄 Cập nhật ngay</button>
+            <div style="background: white; border: 1px solid #e5e7eb; border-radius: 8px; padding: 16px; margin-bottom: 16px;">
+                <h4 style="font-weight: 700; margin-bottom: 12px;">📊 Thông tin</h4>
+                <div class="stats-grid">
+                    <div class="stat-item">
+                        <div class="stat-label">📦 Sản phẩm</div>
+                        <div class="stat-value" id="statProducts">0</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-label">📦 Tồn kho</div>
+                        <div class="stat-value" id="statStock">0</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-label">🕐 Cập nhật</div>
+                        <div class="stat-value" id="statTime" style="font-size: 13px;">-</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-label">👤 User</div>
+                        <div class="stat-value" id="statUser" style="font-size: 12px;">-</div>
+                    </div>
+                </div>
+            </div>
+            <div style="background: white; border: 1px solid #e5e7eb; border-radius: 8px; padding: 16px;">
+                <button onclick="logout()" style="width: 100%; background: #ef4444; color: white; border: none; padding: 10px; border-radius: 6px; font-weight: 600; cursor: pointer;">
+                    🚪 Đăng xuất
+                </button>
+            </div>
+        </div>
+
+        <div class="tab-nav">
+            <button onclick="switchTab('search')" data-tab="search" class="tab-button active">
+                <span>🔍</span><span>Giá</span>
+            </button>
+            <button onclick="switchTab('stock')" data-tab="stock" class="tab-button">
+                <span>📦</span><span>Tồn kho</span>
+            </button>
+            <button onclick="switchTab('settings')" data-tab="settings" class="tab-button">
+                <span>⚙️</span><span>Cài đặt</span>
+            </button>
+        </div>
+    </div>
+
+    <script>
+        const PRICE_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTI4a_2Ou_aXn9rKobCjdUKHhVtXKFmr3F_9nbmIZfQE2BI7N_J3hWHMwZw9NPJw9qMB-WJ2md-L0bP/pub?gid=0&single=true&output=csv';
+        const STOCK_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTI4a_2Ou_aXn9rKobCjdUKHhVtXKFmr3F_9nbmIZfQE2BI7N_J3hWHMwZw9NPJw9qMB-WJ2md-L0bP/pub?gid=1364405692&single=true&output=csv';
+        const EMAIL_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTI4a_2Ou_aXn9rKobCjdUKHhVtXKFmr3F_9nbmIZfQE2BI7N_J3hWHMwZw9NPJw9qMB-WJ2md-L0bP/pub?gid=548592825&single=true&output=csv';
+
+        let priceData = [];
+        let stockData = [];
+        let emailList = [];
+        let lastUpdate = null;
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const isLoggedIn = localStorage.getItem('isLoggedIn');
+            if (isLoggedIn) {
+                loadFromCache();
+                syncAllData();
+            } else {
+                document.getElementById('loginScreen').classList.remove('hidden');
+            }
+        });
+
+        async function handleLogin() {
+            const email = document.getElementById('loginEmail').value.trim();
+            const password = document.getElementById('loginPassword').value;
+            const errorEl = document.getElementById('loginError');
+
+            if (!email || !password) {
+                errorEl.textContent = '❌ Vui lòng nhập email và mật khẩu';
+                errorEl.classList.add('show');
+                return;
+            }
+
+            try {
+                const response = await fetch(EMAIL_CSV_URL + '&t=' + Date.now(), { cache: 'no-store' });
+                const csvText = await response.text();
+                const lines = csvText.split('\n').filter(l => l.trim());
+                
+                let validUser = false;
+                for (let i = 1; i < lines.length; i++) {
+                    const cells = lines[i].split(',').map(c => c.trim().replace(/"/g, ''));
+                    if (cells[0] === email && cells[1] === password) {
+                        validUser = true;
+                        break;
+                    }
+                }
+
+                if (!validUser) {
+                    errorEl.textContent = '❌ Email hoặc mật khẩu sai';
+                    errorEl.classList.add('show');
+                    return;
+                }
+
+                localStorage.setItem('isLoggedIn', 'true');
+                localStorage.setItem('userEmail', email);
+                document.getElementById('loginScreen').classList.add('hidden');
+                
+                loadFromCache();
+                syncAllData();
+            } catch (err) {
+                errorEl.textContent = '❌ Lỗi: ' + err.message;
+                errorEl.classList.add('show');
+            }
+        }
+
+        // PARSER MẠNH - Chỉ lấy khu vực khoanh đỏ (A → Min)
+        async function syncAllData() {
+            try {
+                // ===== PARSE SHEET GIÁ =====
+                const priceRes = await fetch(PRICE_CSV_URL + '&t=' + Date.now(), { cache: 'no-store' });
+                const priceCSV = await priceRes.text();
+                const priceLines = priceCSV.split('\n');
+                
+                // Tìm header row (có "Min")
+                let headerRowIdx = -1;
+                let dataStartIdx = -1;
+                
+                for (let i = 0; i < Math.min(priceLines.length, 20); i++) {
+                    const line = priceLines[i];
+                    if (line.includes('Min') && line.includes(',') && !line.includes('http')) {
+                        headerRowIdx = i;
+                        dataStartIdx = i + 1;
+                        break;
+                    }
+                }
+
+                if (headerRowIdx === -1) {
+                    headerRowIdx = 2;
+                    dataStartIdx = 3;
+                }
+
+                const headers = parseCSVLine(priceLines[headerRowIdx]) || [];
+                
+                // Tìm vị trí cột "Min" đầu tiên (để cut off phần bên phải)
+                let minColIdx = headers.findIndex(h => {
+                    const h_lower = (h || '').toLowerCase().trim();
+                    return h_lower === 'min' || h_lower === 'min ';
+                });
+                
+                if (minColIdx === -1) {
+                    minColIdx = 2; // Default
+                }
+
+                priceData = [];
+                for (let i = dataStartIdx; i < priceLines.length; i++) {
+                    const line = priceLines[i]?.trim();
+                    if (!line) continue;
+
+                    const cells = parseCSVLine(line) || [];
+                    if (cells.length < minColIdx + 1) continue;
+
+                    const code = (cells[0] || '').trim();
+                    if (!code || code.length < 2 || code.toLowerCase().includes('http')) continue;
+
+                    const minPrice = parseFloat(cells[minColIdx]) || 0;
+                    if (minPrice <= 0) continue;
+
+                    const product = {
+                        code,
+                        min: minPrice,
+                        prices: {}
+                    };
+
+                    // Parse TẤT CẢ supplier prices từ cột 3 đến minColIdx-1
+                    for (let j = 3; j < minColIdx; j++) {
+                        const supplierName = (headers[j] || '').trim();
+                        if (!supplierName || supplierName.length === 0) continue;
+                        
+                        const price = parseFloat(cells[j]) || 0;
+                        if (price > 0) {
+                            product.prices[supplierName] = price;
+                        }
+                    }
+
+                    priceData.push(product);
+                }
+
+                // ===== PARSE SHEET TỒN KHO =====
+                const stockRes = await fetch(STOCK_CSV_URL + '&t=' + Date.now(), { cache: 'no-store' });
+                const stockCSV = await stockRes.text();
+                const stockLines = stockCSV.split('\n');
+
+                // Tìm header row ("Tên hàng")
+                let stockHeaderIdx = -1;
+                let stockDataStartIdx = -1;
+                
+                for (let i = 0; i < Math.min(stockLines.length, 20); i++) {
+                    const line = stockLines[i];
+                    if (line.includes('Tên hàng')) {
+                        stockHeaderIdx = i;
+                        stockDataStartIdx = i + 1;
+                        break;
+                    }
+                }
+
+                if (stockHeaderIdx === -1) {
+                    stockHeaderIdx = 3;
+                    stockDataStartIdx = 4;
+                }
+
+                const stockHeaders = parseCSVLine(stockLines[stockHeaderIdx]) || [];
+                let cuoiKyColIdx = stockHeaders.findIndex(h => {
+                    const h_lower = (h || '').toLowerCase();
+                    return h_lower.includes('cuối') || h_lower.includes('số lượng') || h_lower.includes('kỳ');
+                });
+                
+                if (cuoiKyColIdx === -1) {
+                    cuoiKyColIdx = 1; // Mặc định cột B
+                }
+
+                stockData = [];
+                for (let i = stockDataStartIdx; i < stockLines.length; i++) {
+                    const line = stockLines[i]?.trim();
+                    if (!line) continue;
+
+                    const cells = parseCSVLine(line) || [];
+                    if (cells.length < 2) continue;
+
+                    const name = (cells[0] || '').trim();
+                    if (!name || name.length < 2) continue;
+
+                    const quantityStr = (cells[cuoiKyColIdx] || '0').trim();
+                    const quantity = parseInt(quantityStr) || 0;
+
+                    stockData.push({ name, quantity });
+                }
+
+                lastUpdate = new Date().toLocaleString('vi-VN');
+                localStorage.setItem('lastUpdate', lastUpdate);
+                localStorage.setItem('priceData', JSON.stringify(priceData));
+                localStorage.setItem('stockData', JSON.stringify(stockData));
+
+                console.log('✅ Sync OK - Price:', priceData.length, 'cols:', minColIdx, 'Stock:', stockData.length);
+
+                updateStats();
+                renderSearch();
+            } catch (err) {
+                console.error('❌ Sync error:', err);
+            }
+        }
+
+        // CSV Parser - Simple & Robust
+        function parseCSVLine(line) {
+            if (!line || typeof line !== 'string') return [];
+            
+            const result = [];
+            let current = '';
+            let inQuotes = false;
+
+            for (let i = 0; i < line.length; i++) {
+                const char = line[i];
+                const next = line[i + 1];
+
+                if (char === '"') {
+                    if (inQuotes && next === '"') {
+                        current += '"';
+                        i++;
+                    } else {
+                        inQuotes = !inQuotes;
+                    }
+                } else if (char === ',' && !inQuotes) {
+                    result.push(current.replace(/"/g, '').trim());
+                    current = '';
+                } else {
+                    current += char;
+                }
+            }
+            result.push(current.replace(/"/g, '').trim());
+            
+            return result.filter(c => c !== null && c !== undefined);
+        }
+
+        function loadFromCache() {
+            const cached = localStorage.getItem('priceData');
+            const cachedStock = localStorage.getItem('stockData');
+            const cachedTime = localStorage.getItem('lastUpdate');
+            
+            if (cached) priceData = JSON.parse(cached);
+            if (cachedStock) stockData = JSON.parse(cachedStock);
+            if (cachedTime) lastUpdate = cachedTime;
+        }
+
+        function switchTab(tabName) {
+            document.querySelectorAll('.content').forEach(el => el.classList.add('hidden'));
+            document.querySelectorAll('.tab-button').forEach(el => el.classList.remove('active'));
+            
+            document.getElementById(`tab-${tabName}`).classList.remove('hidden');
+            document.querySelector(`[data-tab="${tabName}"]`).classList.add('active');
+        }
+
+        document.getElementById('searchInput')?.addEventListener('input', (e) => {
+            renderSearch(e.target.value);
+        });
+
+        function renderSearch(query = '') {
+            const results = query 
+                ? priceData.filter(p => p.code.toLowerCase().includes(query.toLowerCase()))
+                : [];
+
+            const container = document.getElementById('searchResults');
+            
+            if (!query) {
+                container.innerHTML = `<div class="empty-state">🔍 Nhập mã sản phẩm</div>`;
+                document.getElementById('searchCount').textContent = '';
+                return;
+            }
+
+            if (results.length === 0) {
+                container.innerHTML = `<div class="empty-state">Không tìm thấy</div>`;
+                return;
+            }
+
+            document.getElementById('searchCount').textContent = `Tìm thấy ${results.length}`;
+
+            container.innerHTML = results.map(product => {
+                const stock = getStock(product.code);
+                const suppliers = Object.entries(product.prices);
+                
+                return `
+                    <div class="product-card">
+                        <div class="product-header">
+                            <div class="product-code">${product.code}</div>
+                        </div>
+                        <div class="product-info">
+                            <div class="info-item">
+                                <div class="info-label">💰 Min</div>
+                                <div class="info-value">${product.min.toLocaleString('vi-VN')}</div>
+                            </div>
+                            <div class="info-item">
+                                <div class="info-label">📦 Tồn kho</div>
+                                <div class="info-value ${stock > 0 ? 'stock' : 'outstock'}">${stock}</div>
+                            </div>
+                        </div>
+                        ${suppliers.length > 0 ? `
+                            <div class="price-details">
+                                <strong>Giá NCC:</strong>
+                                ${suppliers.map(([supplier, price]) => `
+                                    <div class="price-row">
+                                        <span class="supplier-name">${supplier}</span>
+                                        <span class="supplier-price">${price.toLocaleString('vi-VN')}</span>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        ` : ''}
+                    </div>
+                `;
+            }).join('');
+        }
+
+        document.getElementById('stockSearch')?.addEventListener('input', (e) => {
+            renderStock(e.target.value);
+        });
+
+        function renderStock(query = '') {
+            const results = query 
+                ? stockData.filter(s => s.name.toLowerCase().includes(query.toLowerCase()))
+                : stockData;
+
+            const container = document.getElementById('stockResults');
+            
+            if (results.length === 0) {
+                container.innerHTML = `<div class="empty-state">📦 Không có sản phẩm</div>`;
+                document.getElementById('stockCount').textContent = '';
+                return;
+            }
+
+            document.getElementById('stockCount').textContent = `${results.length} sản phẩm`;
+
+            container.innerHTML = results.map(stock => `
+                <div class="product-card">
+                    <div class="product-header">
+                        <div class="product-code">${stock.name}</div>
+                    </div>
+                    <div class="product-info">
+                        <div class="info-item" style="grid-column: 1/-1;">
+                            <div class="info-label">📦 Số lượng</div>
+                            <div class="info-value ${stock.quantity > 0 ? 'stock' : 'outstock'}">${stock.quantity}</div>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function getStock(code) {
+            const stock = stockData.find(s => s.name.includes(code));
+            return stock ? stock.quantity : 0;
+        }
+
+        function updateStats() {
+            document.getElementById('statProducts').textContent = priceData.length;
+            document.getElementById('statStock').textContent = stockData.length;
+            document.getElementById('statTime').textContent = lastUpdate ? lastUpdate.split(' ')[0] : '-';
+            const userEmail = localStorage.getItem('userEmail');
+            document.getElementById('statUser').textContent = userEmail ? userEmail.split('@')[0] : '-';
+        }
+
+        function logout() {
+            localStorage.removeItem('isLoggedIn');
+            localStorage.removeItem('userEmail');
+            location.reload();
+        }
+
+        document.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter' && !document.getElementById('loginScreen').classList.contains('hidden')) {
+                handleLogin();
+            }
+        });
+    </script>
+</body>
+</html>
