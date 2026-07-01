@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Debug CSV Data</title>
+    <style>
+        body {
+            font-family: monospace;
+            background: #1f2937;
+            color: #e5e7eb;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        .section {
+            background: #374151;
+            padding: 20px;
+            margin-bottom: 20px;
+            border-radius: 8px;
+        }
+        h2 {
+            color: #fbbf24;
+            margin-top: 0;
+        }
+        pre {
+            background: #1f2937;
+            padding: 10px;
+            border-radius: 4px;
+            overflow-x: auto;
+            font-size: 12px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        button {
+            background: #2563eb;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            margin-bottom: 10px;
+        }
+        button:hover {
+            background: #1d4ed8;
+        }
+        .status {
+            padding: 10px;
+            border-radius: 4px;
+            margin-bottom: 10px;
+        }
+        .loading {
+            background: #fbbf24;
+            color: #1f2937;
+        }
+        .success {
+            background: #22c55e;
+            color: white;
+        }
+        .error {
+            background: #ef4444;
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔍 Debug CSV Data</h1>
+        
+        <div class="section">
+            <h2>📊 Sheet Giá</h2>
+            <button onclick="fetchPrice()">Fetch Dữ liệu</button>
+            <div id="priceStatus" class="status"></div>
+            <pre id="priceData">Chưa fetch...</pre>
+        </div>
+
+        <div class="section">
+            <h2>📦 Sheet Tồn kho</h2>
+            <button onclick="fetchStock()">Fetch Dữ liệu</button>
+            <div id="stockStatus" class="status"></div>
+            <pre id="stockData">Chưa fetch...</pre>
+        </div>
+
+        <div class="section">
+            <h2>👤 Sheet Email</h2>
+            <button onclick="fetchEmail()">Fetch Dữ liệu</button>
+            <div id="emailStatus" class="status"></div>
+            <pre id="emailData">Chưa fetch...</pre>
+        </div>
+
+        <div class="section">
+            <h2>🚀 Fetch Tất cả</h2>
+            <button onclick="fetchAll()">Fetch All</button>
+        </div>
+    </div>
+
+    <script>
+        const PRICE_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTI4a_2Ou_aXn9rKobCjdUKHhVtXKFmr3F_9nbmIZfQE2BI7N_J3hWHMwZw9NPJw9qMB-WJ2md-L0bP/pub?gid=0&single=true&output=csv';
+        const STOCK_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTI4a_2Ou_aXn9rKobCjdUKHhVtXKFmr3F_9nbmIZfQE2BI7N_J3hWHMwZw9NPJw9qMB-WJ2md-L0bP/pub?gid=1364405692&single=true&output=csv';
+        const EMAIL_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTI4a_2Ou_aXn9rKobCjdUKHhVtXKFmr3F_9nbmIZfQE2BI7N_J3hWHMwZw9NPJw9qMB-WJ2md-L0bP/pub?gid=548592825&single=true&output=csv';
+
+        async function fetchPrice() {
+            const statusEl = document.getElementById('priceStatus');
+            const dataEl = document.getElementById('priceData');
+            
+            statusEl.className = 'status loading';
+            statusEl.textContent = '⏳ Đang fetch...';
+            
+            try {
+                const response = await fetch(PRICE_CSV_URL + '&t=' + Date.now());
+                const text = await response.text();
+                
+                dataEl.textContent = text.substring(0, 2000);
+                statusEl.className = 'status success';
+                statusEl.textContent = `✅ Fetch thành công (${text.length} ký tự)`;
+                
+                // Parse & show first 10 rows
+                const lines = text.split('\n').slice(0, 10);
+                dataEl.textContent = 'First 10 lines:\n' + lines.join('\n') + '\n\n--- Full data ---\n' + text;
+            } catch (err) {
+                statusEl.className = 'status error';
+                statusEl.textContent = '❌ Lỗi: ' + err.message;
+                dataEl.textContent = err.message;
+            }
+        }
+
+        async function fetchStock() {
+            const statusEl = document.getElementById('stockStatus');
+            const dataEl = document.getElementById('stockData');
+            
+            statusEl.className = 'status loading';
+            statusEl.textContent = '⏳ Đang fetch...';
+            
+            try {
+                const response = await fetch(STOCK_CSV_URL + '&t=' + Date.now());
+                const text = await response.text();
+                
+                statusEl.className = 'status success';
+                statusEl.textContent = `✅ Fetch thành công (${text.length} ký tự)`;
+                
+                const lines = text.split('\n').slice(0, 10);
+                dataEl.textContent = 'First 10 lines:\n' + lines.join('\n') + '\n\n--- Full data ---\n' + text;
+            } catch (err) {
+                statusEl.className = 'status error';
+                statusEl.textContent = '❌ Lỗi: ' + err.message;
+                dataEl.textContent = err.message;
+            }
+        }
+
+        async function fetchEmail() {
+            const statusEl = document.getElementById('emailStatus');
+            const dataEl = document.getElementById('emailData');
+            
+            statusEl.className = 'status loading';
+            statusEl.textContent = '⏳ Đang fetch...';
+            
+            try {
+                const response = await fetch(EMAIL_CSV_URL + '&t=' + Date.now());
+                const text = await response.text();
+                
+                statusEl.className = 'status success';
+                statusEl.textContent = `✅ Fetch thành công (${text.length} ký tự)`;
+                
+                const lines = text.split('\n').slice(0, 10);
+                dataEl.textContent = 'First 10 lines:\n' + lines.join('\n') + '\n\n--- Full data ---\n' + text;
+            } catch (err) {
+                statusEl.className = 'status error';
+                statusEl.textContent = '❌ Lỗi: ' + err.message;
+                dataEl.textContent = err.message;
+            }
+        }
+
+        async function fetchAll() {
+            fetchPrice();
+            setTimeout(() => fetchStock(), 500);
+            setTimeout(() => fetchEmail(), 1000);
+        }
+
+        // Auto fetch on load
+        window.addEventListener('load', () => {
+            console.log('Debug page loaded');
+        });
+    </script>
+</body>
+</html>
